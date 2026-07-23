@@ -19,6 +19,7 @@ Endpoints
 
 from fastapi import FastAPI, HTTPException
 from fastapi.openapi.docs import get_swagger_ui_html
+from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="Nexus-Omni Simulator API",
