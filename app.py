@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import logging
 
-from simulation.core_engine import NexusOmniEngine, SimulationParams, SimulationState
+from core_engine import NexusOmniEngine, SimulationParams, SimulationState
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
