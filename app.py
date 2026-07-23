@@ -17,34 +17,24 @@ Endpoints
 ──────────────────────────────────────────────────────────────────────────────
 """
 
-import numpy as np
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Optional
-import logging
+from fastapi.openapi.docs import get_swagger_ui_html
 
-from core_engine import NexusOmniEngine, SimulationParams, SimulationState
-
-# ── Logging ───────────────────────────────────────────────────────────────────
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("nexus_omni")
-
-# ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Nexus-Omni Simulator API",
-    description="Multi-domain mathematical modelling backend.",
     version="0.1.0",
+    description="Multi-domain mathematical modelling backend.",
+    docs_url=None
 )
 
-# Allow any origin during development (tighten this in production)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Neon UI",
+        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
+        swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
+    )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §1  REQUEST / RESPONSE SCHEMAS  (Pydantic)
