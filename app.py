@@ -34,7 +34,7 @@ from pydantic import BaseModel
 
 # Relative import — works because simulation/ is a package (has __init__.py)
 # and uvicorn is launched as `uvicorn simulation.app:app` from the project root.
-from .core_engine import NexusOmniEngine, SimulationParams
+from core_engine import NexusOmniEngine, SimulationParams
 
 
 # ══════════════════════════════════════════════════════════════════════════════
