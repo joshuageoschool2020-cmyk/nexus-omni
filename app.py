@@ -8,39 +8,52 @@ Start from the PROJECT ROOT (one level above simulation/):
 
 Endpoints
 ─────────
-  GET  /            – health check & live engine metrics
-  POST /tick        – advance all four domains by one dt; returns full state
-  POST /reset       – rebuild engine from scratch, with optional param overrides
-  GET  /docs        – custom cyberpunk Swagger UI
-  GET  /openapi.json – OpenAPI schema (served automatically by FastAPI)
+  GET  /             – health check & live engine metrics
+  POST /tick         – advance all four domains by one dt; returns full state
+  POST /reset        – rebuild engine from scratch, with optional param overrides
+  GET  /docs         – custom cyberpunk Swagger UI
+  GET  /openapi.json – OpenAPI 3.0.3 schema
 
-FIX applied here
-─────────────────
-  NexusOmniEngine.__init__ requires a SimulationParams argument.
-  Previous crash: NexusOmniEngine()               ← missing required positional arg
-  Corrected:      NexusOmniEngine(SimulationParams())   ← see §2 below
+FIXES APPLIED  (3 bugs, all annotated with ← FIX)
+──────────────
+  FIX 1 │ INVALID badge in Swagger UI
+  │ Root cause: Pydantic v2 emits `prefixItems` for Tuple types.
+  │ `prefixItems` is JSON Schema 2020-12 / OpenAPI 3.1 only.
+  │ Swagger UI's built-in validator runs OAS 3.0 rules → flags it INVALID.
+  │ Solution A: openapi_version="3.0.3" in FastAPI() constructor.
+  │ Solution B: replace Tuple[float,float,float] with List[float] in ParamsIn.
+  │ Both are applied for belt-and-braces correctness.
+
+  FIX 2 │ Import path error (ModuleNotFoundError on Replit)
+  │ Root cause: `from core_engine import` is an absolute import.
+  │ When uvicorn is launched as `uvicorn simulation.app:app` from the project
+  │ root, Python resolves imports relative to the root, not to simulation/.
+  │ Solution: `from .core_engine import` (explicit relative import).
+
+  FIX 3 │ Loose `active_params: dict` type in HealthResponse
+  │ Root cause: bare `dict` emits `{"additionalProperties": true}` which is
+  │ technically valid but confuses some clients and linters.
+  │ Solution: `Dict[str, Any]` for explicit, documented schema.
 ──────────────────────────────────────────────────────────────────────────────
 """
 
 from __future__ import annotations
 
 import dataclasses
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
-# Relative import — works because simulation/ is a package (has __init__.py)
-# and uvicorn is launched as `uvicorn simulation.app:app` from the project root.
-from core_engine import NexusOmniEngine, SimulationParams
+# ← FIX 2: relative import (.core_engine) so this works when the simulation/
+#           directory is treated as a Python package by uvicorn.
+from .core_engine import NexusOmniEngine, SimulationParams
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §1  APP INSTANCE
-#     docs_url=None  →  we serve our own cyberpunk /docs (§6)
-#     redoc_url=None →  disable the default ReDoc page
 # ══════════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(
@@ -54,13 +67,17 @@ app = FastAPI(
         "- **Domain 4** — Composite statistical risk scoring"
     ),
     version="0.1.0",
+    # ← FIX 1 (part A): force OAS 3.0.3 so Swagger UI's validator is happy.
+    #   Swagger UI's built-in spec validator uses OAS 3.0 rules; it incorrectly
+    #   rejects OAS 3.1 keywords like `prefixItems` → shows the INVALID badge.
+    openapi_version="3.0.3",
     docs_url=None,   # disabled — replaced by custom /docs route in §6
     redoc_url=None,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # lock this down to your Replit domain in production
+    allow_origins=["*"],   # lock to your Replit domain in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -68,47 +85,66 @@ app.add_middleware(
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §2  ENGINE SINGLETON
-#
-#   THE FIX:  NexusOmniEngine expects a SimulationParams as its first argument.
-#             We create a default SimulationParams() instance first, then pass
-#             it in.  The engine is re-created (not mutated) on every /reset.
 # ══════════════════════════════════════════════════════════════════════════════
 
-_params:     SimulationParams = SimulationParams()         # ← default knobs
-_engine:     NexusOmniEngine  = NexusOmniEngine(_params)  # ← THE FIX
+_params:     SimulationParams = SimulationParams()
+_engine:     NexusOmniEngine  = NexusOmniEngine(_params)
 _tick_count: int               = 0
-_last_state                    = None   # caches the most recent SimulationState
+_last_state                    = None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# §3  PYDANTIC MODELS
-#     All request bodies and response shapes are typed here.
-#     Every field is Optional in ParamsIn — omitted fields keep their defaults.
+# §3  PYDANTIC REQUEST / RESPONSE MODELS
 # ══════════════════════════════════════════════════════════════════════════════
 
 class ParamsIn(BaseModel):
-    """Body for POST /reset.  Only supply the fields you want to override."""
+    """Body for POST /reset. Only supply the fields you want to override."""
+
     # Domain 1 — SEIR
     beta:               Optional[float] = None
     gamma:              Optional[float] = None
     sigma:              Optional[float] = None
     population:         Optional[int]   = None
+
     # Domain 2 — Spatial
     grid_size:          Optional[int]   = None
     diffusion_coeff:    Optional[float] = None
     wind_vx:            Optional[float] = None
     wind_vy:            Optional[float] = None
+
     # Domain 3 — Supply chain
-    num_nodes:          Optional[int]   = None
-    base_capacity:      Optional[float] = None
+    num_nodes:          Optional[int]         = None
+    base_capacity:      Optional[float]       = None
     inflow_rates:       Optional[List[float]] = None
     outflow_rates:      Optional[List[float]] = None
-    capacity_threshold: Optional[float] = None
-    # Domain 4 — Risk
-    risk_weights:       Optional[Tuple[float, float, float]] = None
+    capacity_threshold: Optional[float]       = None
+
+    # Domain 4 — Risk weights
+    # ← FIX 1 (part B): List[float] instead of Tuple[float, float, float].
+    #   Pydantic v2 maps Tuple → `prefixItems` (OAS 3.1 only).
+    #   List[float] maps → a plain `array` of `number` (OAS 3.0 compatible).
+    risk_weights: Optional[List[float]] = None
+
+    @field_validator("risk_weights")
+    @classmethod
+    def weights_must_have_three_elements(
+        cls, v: Optional[List[float]]
+    ) -> Optional[List[float]]:
+        """Enforce exactly three weights that sum to 1.0."""
+        if v is None:
+            return v
+        if len(v) != 3:
+            raise ValueError("risk_weights must contain exactly 3 values")
+        total = sum(v)
+        if not (0.99 <= total <= 1.01):
+            raise ValueError(
+                f"risk_weights must sum to ~1.0 (got {total:.4f})"
+            )
+        return v
+
     # Simulation global
-    dt:                 Optional[float] = None
-    seed:               int = 42   # always has a value; controls engine RNG
+    dt:   Optional[float] = None
+    seed: int             = 42
 
 
 class SEIROut(BaseModel):
@@ -134,7 +170,7 @@ class TickResponse(BaseModel):
     bottleneck_flags:    List[bool]
     supply_stress_score: float
     risk_score:          float
-    risk_breakdown:      List[float]   # [infection_contribution, spatial, supply]
+    risk_breakdown:      List[float]
 
 
 class HealthResponse(BaseModel):
@@ -142,7 +178,10 @@ class HealthResponse(BaseModel):
     tick:          int
     r_naught:      float
     risk_score:    float
-    active_params: dict
+    # ← FIX 3: Dict[str, Any] instead of plain `dict`.
+    #   Generates a proper `additionalProperties` schema with typed values,
+    #   satisfying strict OpenAPI validators and improving IDE autocomplete.
+    active_params: Dict[str, Any]
 
 
 class ResetResponse(BaseModel):
@@ -154,8 +193,8 @@ class ResetResponse(BaseModel):
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §4  SERIALISATION HELPER
-#     SimulationState stores NumPy arrays → convert every field to plain Python
-#     types so FastAPI/Pydantic can serialise them to JSON without errors.
+#     Converts every np.ndarray in SimulationState to plain Python types.
+#     Rule: call .tolist() on every NumPy array before it leaves this layer.
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _build_response(state, tick: int) -> TickResponse:
@@ -171,8 +210,11 @@ def _build_response(state, tick: int) -> TickResponse:
         r_naught            = round(float(state.r_naught), 6),
         dominant_eigenvalue = round(float(state.dominant_eigenvalue), 6),
         diffusion_grid      = state.diffusion_grid.tolist(),
-        velocity_field      = VelocityOut(vx=vx.tolist(), vy=vy.tolist()),
-        inventory           = [round(float(v), 2)  for v in state.inventory_vector],
+        velocity_field      = VelocityOut(
+                                vx=vx.tolist(),
+                                vy=vy.tolist(),
+                              ),
+        inventory           = [round(float(v), 2) for v in state.inventory_vector],
         bottleneck_flags    = state.bottleneck_flags.tolist(),
         supply_stress_score = round(float(state.supply_stress_score), 6),
         risk_score          = round(float(state.risk_score), 6),
@@ -193,11 +235,13 @@ def _build_response(state, tick: int) -> TickResponse:
 async def health() -> HealthResponse:
     """
     Returns engine liveness, the current tick counter, and the full set of
-    active `SimulationParams`.  Does **not** advance the simulation.
+    active `SimulationParams`. Does **not** advance the simulation.
     """
     r0 = _params.beta / _params.gamma
     rs = float(_last_state.risk_score) if _last_state else 0.0
 
+    # dataclasses.asdict() safely converts the SimulationParams dataclass
+    # to a plain dict; all fields are Python primitives (float, int, list).
     return HealthResponse(
         status        = "ok",
         tick          = _tick_count,
@@ -258,14 +302,14 @@ async def reset(body: ParamsIn = None) -> ResetResponse:
         if v is not None and k != "seed"
     }
 
-    # Pydantic may give risk_weights as a list; SimulationParams wants a tuple
-    if "risk_weights" in overrides and isinstance(overrides["risk_weights"], list):
+    # risk_weights arrives as List[float] — SimulationParams stores it as a
+    # tuple (lightweight immutable), so convert here before construction.
+    if "risk_weights" in overrides:
         overrides["risk_weights"] = tuple(overrides["risk_weights"])
 
     base_dict.update(overrides)
     new_params = SimulationParams(**base_dict)
 
-    # Replace singleton
     _params      = new_params
     _engine      = NexusOmniEngine(new_params, seed=body.seed)
     _tick_count  = 0
@@ -286,9 +330,6 @@ async def reset(body: ParamsIn = None) -> ResetResponse:
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §6  CUSTOM SWAGGER UI  —  dark neon / cyberpunk theme
-#
-#     FastAPI's default /docs is disabled (docs_url=None in §1).
-#     We serve our own HTML that loads Swagger UI 5 from CDN and injects CSS.
 # ══════════════════════════════════════════════════════════════════════════════
 
 _CYBERPUNK_CSS = """
@@ -313,8 +354,6 @@ _CYBERPUNK_CSS = """
     margin: 0;
     font-family: 'JetBrains Mono','Fira Code','Courier New',monospace;
   }
-
-  /* TOPBAR */
   .swagger-ui .topbar {
     background: linear-gradient(135deg,#0a0820,#160e30);
     border-bottom: 1px solid var(--cyan);
@@ -342,11 +381,7 @@ _CYBERPUNK_CSS = """
     background: var(--cyan); color: var(--bg); font-weight: 700;
     border: none; border-radius: 4px; font-family: inherit;
   }
-
-  /* BASE */
   .swagger-ui { background: var(--bg); color: var(--text); }
-
-  /* INFO */
   .swagger-ui .info {
     margin: 28px 0; padding: 24px 28px;
     background: var(--surface);
@@ -367,8 +402,6 @@ _CYBERPUNK_CSS = """
   .swagger-ui .info li { color: var(--dim); font-size: .85rem; }
   .swagger-ui .info a { color: var(--cyan); text-decoration: none; }
   .swagger-ui .info a:hover { text-shadow: var(--glow-c); }
-
-  /* TAG HEADERS */
   .swagger-ui .opblock-tag {
     border-bottom: 1px solid var(--border);
     color: var(--violet);
@@ -377,8 +410,6 @@ _CYBERPUNK_CSS = """
   }
   .swagger-ui .opblock-tag:hover { background: rgba(191,95,255,.04); }
   .swagger-ui .opblock-tag svg   { fill: var(--violet); }
-
-  /* OPERATION BLOCKS */
   .swagger-ui .opblock {
     border-radius: 6px; margin-bottom: 8px;
     border: 1px solid var(--border) !important;
@@ -399,8 +430,6 @@ _CYBERPUNK_CSS = """
     color: var(--text); font-family: 'JetBrains Mono',monospace; font-size: .9rem;
   }
   .swagger-ui .opblock-summary-description { color: var(--dim); font-size: .8rem; }
-
-  /* GET  → cyan  */
   .swagger-ui .opblock.opblock-get {
     border-left: 3px solid var(--cyan) !important;
     background: rgba(0,245,255,.025) !important;
@@ -408,7 +437,6 @@ _CYBERPUNK_CSS = """
   .swagger-ui .opblock.opblock-get .opblock-summary-method {
     background: var(--cyan); color: var(--bg);
   }
-  /* POST → violet */
   .swagger-ui .opblock.opblock-post {
     border-left: 3px solid var(--violet) !important;
     background: rgba(191,95,255,.025) !important;
@@ -416,26 +444,20 @@ _CYBERPUNK_CSS = """
   .swagger-ui .opblock.opblock-post .opblock-summary-method {
     background: var(--violet); color: var(--bg);
   }
-  /* DELETE → red */
   .swagger-ui .opblock.opblock-delete {
     border-left: 3px solid var(--red) !important;
   }
   .swagger-ui .opblock.opblock-delete .opblock-summary-method {
     background: var(--red); color: #fff;
   }
-  /* PUT → orange */
   .swagger-ui .opblock.opblock-put {
     border-left: 3px solid var(--orange) !important;
   }
   .swagger-ui .opblock.opblock-put .opblock-summary-method {
     background: var(--orange); color: var(--bg);
   }
-
-  /* EXPANDED BODY */
   .swagger-ui .opblock-body { background: var(--surf2); }
   .swagger-ui .opblock-description-wrapper p { color: var(--dim); }
-
-  /* PARAMETERS */
   .swagger-ui .parameter__name,
   .swagger-ui .parameter__type,
   .swagger-ui .parameters-col_description p { color: var(--text); font-family: inherit; }
@@ -445,8 +467,6 @@ _CYBERPUNK_CSS = """
     font-family: inherit; font-size: .75rem; letter-spacing: 1px; text-transform: uppercase;
   }
   .swagger-ui table tbody tr td { border-bottom: 1px solid var(--border); }
-
-  /* BUTTONS */
   .swagger-ui .btn.execute {
     background: transparent; border: 1px solid var(--cyan); border-radius: 4px;
     color: var(--cyan); font-family: 'Orbitron',sans-serif; font-size: .65rem;
@@ -466,8 +486,6 @@ _CYBERPUNK_CSS = """
   .swagger-ui .try-out__btn:hover {
     background: var(--violet); color: var(--bg); box-shadow: var(--glow-v);
   }
-
-  /* INPUTS */
   .swagger-ui input[type=text],
   .swagger-ui input[type=number],
   .swagger-ui textarea,
@@ -481,8 +499,6 @@ _CYBERPUNK_CSS = """
   .swagger-ui select:focus {
     border-color: var(--cyan) !important; box-shadow: var(--glow-c) !important; outline: none;
   }
-
-  /* RESPONSES */
   .swagger-ui .response-col_status { color: var(--green); font-family: inherit; font-weight: 700; }
   .swagger-ui .response-col_description { color: var(--dim); }
   .swagger-ui .responses-inner h4,
@@ -492,8 +508,6 @@ _CYBERPUNK_CSS = """
     border-radius: 4px; color: var(--green) !important;
     font-family: 'JetBrains Mono',monospace; font-size: .8rem;
   }
-
-  /* SCHEMAS */
   .swagger-ui section.models {
     background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
   }
@@ -506,64 +520,58 @@ _CYBERPUNK_CSS = """
   .swagger-ui span.prop-name { color: var(--cyan); }
   .swagger-ui .prop-type     { color: var(--violet) !important; }
   .swagger-ui .prop-format   { color: var(--dim); }
-
-  /* SCHEME SELECTOR */
   .swagger-ui .scheme-container {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 6px; box-shadow: none; padding: 16px;
   }
   .swagger-ui .servers > label { color: var(--dim); font-family: inherit; }
-
-  /* MISC */
   .swagger-ui svg   { fill: var(--dim); }
   .swagger-ui .arrow { fill: var(--cyan); }
-
-  /* SCROLLBAR */
   ::-webkit-scrollbar              { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track        { background: var(--bg); }
   ::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover  { background: var(--cyan); box-shadow: var(--glow-c); }
 """
 
-_SWAGGER_HTML = (
-    "<!DOCTYPE html>\n"
-    "<html lang=\"en\">\n"
-    "<head>\n"
-    "  <meta charset=\"UTF-8\" />\n"
-    "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n"
-    "  <title>Nexus-Omni \u2014 API Docs</title>\n"
-    "  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />\n"
-    "  <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@700;900&display=swap\"\n"
-    "        rel=\"stylesheet\" />\n"
-    "  <link rel=\"stylesheet\" type=\"text/css\"\n"
-    "        href=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui.css\" />\n"
-    "  <style>\n"
-    + _CYBERPUNK_CSS +
-    "  </style>\n"
-    "</head>\n"
-    "<body>\n"
-    "  <div id=\"swagger-ui\"></div>\n"
-    "  <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>\n"
-    "  <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js\"></script>\n"
-    "  <script>\n"
-    "    window.onload = function () {\n"
-    "      window.ui = SwaggerUIBundle({\n"
-    "        url:             \"/openapi.json\",\n"
-    "        dom_id:          \"#swagger-ui\",\n"
-    "        presets:         [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],\n"
-    "        layout:          \"StandaloneLayout\",\n"
-    "        deepLinking:     true,\n"
-    "        displayRequestDuration: true,\n"
-    "        defaultModelsExpandDepth: 1,\n"
-    "        defaultModelExpandDepth:  1,\n"
-    "        filter:          true,\n"
-    "        syntaxHighlight: { theme: \"monokai\" },\n"
-    "      });\n"
-    "    };\n"
-    "  </script>\n"
-    "</body>\n"
-    "</html>\n"
-)
+_SWAGGER_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus-Omni \u2014 API Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@700;900&display=swap"
+        rel="stylesheet" />
+  <link rel="stylesheet" type="text/css"
+        href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+""" + _CYBERPUNK_CSS + """
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = function () {
+      window.ui = SwaggerUIBundle({
+        url:             "/openapi.json",
+        dom_id:          "#swagger-ui",
+        presets:         [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout:          "StandaloneLayout",
+        deepLinking:     true,
+        displayRequestDuration: true,
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth:  1,
+        filter:          true,
+        syntaxHighlight: { theme: "monokai" },
+        validatorUrl:    null,
+      });
+    };
+  </script>
+</body>
+</html>
+"""
 
 
 @app.get("/docs", include_in_schema=False)
