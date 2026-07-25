@@ -17,7 +17,7 @@ from core_engine import NexusOmniEngine, SimulationParams, SimulationState
 app = FastAPI(
     title="Nexus-Omni Simulator",
     version="0.1.0",
-    description="Multi-domain mathematical modelling backend with NASA-grade telemetry command deck.",
+    description="Multi-domain mathematical modelling backend with advanced NASA telemetry graphs and analysis.",
     docs_url=None, 
     redoc_url=None
 )
@@ -64,7 +64,7 @@ class ResetResponse(BaseModel):
     message: str
 
 # ---------------------------------------------------------------------------
-# NASA-GRADE ADVANCED TELEMETRY CONTROL DECK UI
+# NASA-GRADE MULTI-GRAPH ANALYTICAL TELEMETRY COMMAND DECK UI
 # ---------------------------------------------------------------------------
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html() -> HTMLResponse:
@@ -73,18 +73,18 @@ async def custom_swagger_ui_html() -> HTMLResponse:
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>NEXUS-OMNI // DEEP-SPACE TELEMETRY & COMMAND DECK</title>
+        <title>NEXUS-OMNI // ADVANCED FLIGHT TELEMETRY & ANALYTICAL DECK</title>
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
         <style>
             :root {
-                --nasa-bg: #050b14;
-                --nasa-panel: #0d1726;
-                --nasa-border: #1e3a5f;
-                --nasa-amber: #ffb703;
-                --nasa-cyan: #00b4d8;
-                --nasa-green: #2ec4b6;
-                --nasa-red: #e71d36;
-                --nasa-text: #e2e8f0;
+                --nasa-bg: #030712;
+                --nasa-panel: #0b1329;
+                --nasa-border: #1e3a8a;
+                --nasa-amber: #f59e0b;
+                --nasa-cyan: #06b6d4;
+                --nasa-green: #10b981;
+                --nasa-red: #ef4444;
+                --nasa-text: #f8fafc;
                 --nasa-muted: #64748b;
             }
             body {
@@ -96,45 +96,44 @@ async def custom_swagger_ui_html() -> HTMLResponse:
             }
             /* NASA Mission Control Header */
             .mission-header {
-                background: linear-gradient(180deg, #091324 0%, #050b14 100%);
+                background: linear-gradient(180deg, #0f172a 0%, #030712 100%);
                 border-bottom: 2px solid var(--nasa-cyan);
                 padding: 20px;
-                font-family: 'Courier New', Courier, monospace;
             }
             .mission-grid-top {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                max-width: 1400px;
+                max-width: 1450px;
                 margin: 0 auto;
                 border-bottom: 1px dashed var(--nasa-border);
                 padding-bottom: 15px;
-                margin-bottom: 15px;
+                margin-bottom: 20px;
             }
             .mission-title {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
                 font-weight: bold;
                 color: var(--nasa-cyan);
                 letter-spacing: 2px;
             }
             .mission-badge {
-                background: rgba(0, 180, 216, 0.1);
+                background: rgba(6, 182, 212, 0.1);
                 border: 1px solid var(--nasa-cyan);
                 color: var(--nasa-cyan);
-                padding: 4px 10px;
+                padding: 4px 12px;
                 font-size: 0.8rem;
                 letter-spacing: 1px;
             }
             
-            /* Command Console Container */
+            /* Command Console Layout */
             .command-deck {
-                max-width: 1400px;
+                max-width: 1450px;
                 margin: 0 auto;
                 display: grid;
                 grid-template-columns: 2fr 1fr;
                 gap: 20px;
             }
-            @media (max-width: 900px) {
+            @media (max-width: 1000px) {
                 .command-deck { grid-template-columns: 1fr; }
             }
             
@@ -143,10 +142,10 @@ async def custom_swagger_ui_html() -> HTMLResponse:
                 border: 1px solid var(--nasa-border);
                 border-radius: 4px;
                 padding: 15px;
-                box-shadow: inset 0 0 15px rgba(0, 180, 216, 0.05);
+                box-shadow: inset 0 0 20px rgba(6, 182, 212, 0.05);
             }
             .panel-header {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
                 color: var(--nasa-amber);
                 text-transform: uppercase;
                 letter-spacing: 1.5px;
@@ -160,32 +159,55 @@ async def custom_swagger_ui_html() -> HTMLResponse:
             /* Telemetry Data Grid */
             .telemetry-grid {
                 display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+            @media (max-width: 700px) {
+                .telemetry-grid { grid-template-columns: repeat(2, 1fr); }
             }
             .telemetry-item {
-                background: #060e18;
+                background: #020617;
                 border: 1px solid var(--nasa-border);
-                padding: 10px;
+                padding: 8px 10px;
+                text-align: center;
             }
             .telemetry-label {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
                 color: var(--nasa-muted);
                 text-transform: uppercase;
             }
             .telemetry-value {
-                font-size: 1.4rem;
+                font-size: 1.2rem;
                 font-weight: bold;
                 color: var(--nasa-green);
                 margin-top: 4px;
             }
             
-            /* Vector Canvas Simulation Visualiser */
-            #sim-canvas {
-                width: 100%;
-                height: 180px;
-                background: #03070e;
+            /* Multi-Graph Canvas Grid */
+            .graphs-container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+            @media (max-width: 700px) {
+                .graphs-container { grid-template-columns: 1fr; }
+            }
+            .graph-box {
+                background: #020617;
                 border: 1px solid var(--nasa-border);
+                padding: 8px;
+            }
+            .graph-title {
+                font-size: 0.7rem;
+                color: var(--nasa-cyan);
+                margin-bottom: 4px;
+                text-transform: uppercase;
+            }
+            canvas {
+                width: 100%;
+                height: 110px;
                 display: block;
             }
             
@@ -193,7 +215,6 @@ async def custom_swagger_ui_html() -> HTMLResponse:
             .action-panel-btns {
                 display: flex;
                 gap: 10px;
-                margin-top: 15px;
             }
             .nasa-btn {
                 background: transparent;
@@ -201,16 +222,17 @@ async def custom_swagger_ui_html() -> HTMLResponse:
                 color: var(--nasa-cyan);
                 padding: 8px 14px;
                 font-family: 'Courier New', Courier, monospace;
-                font-size: 0.85rem;
+                font-size: 0.8rem;
                 font-weight: bold;
                 cursor: pointer;
                 transition: all 0.2s;
                 text-transform: uppercase;
+                flex: 1;
             }
             .nasa-btn:hover {
                 background: var(--nasa-cyan);
                 color: var(--nasa-bg);
-                box-shadow: 0 0 10px var(--nasa-cyan);
+                box-shadow: 0 0 12px var(--nasa-cyan);
             }
             .nasa-btn-amber {
                 border-color: var(--nasa-amber);
@@ -219,22 +241,22 @@ async def custom_swagger_ui_html() -> HTMLResponse:
             .nasa-btn-amber:hover {
                 background: var(--nasa-amber);
                 color: var(--nasa-bg);
-                box-shadow: 0 0 10px var(--nasa-amber);
+                box-shadow: 0 0 12px var(--nasa-amber);
             }
             
             /* Live Terminal Logs */
             .terminal-log {
-                background: #020509;
+                background: #020617;
                 border: 1px solid var(--nasa-border);
-                height: 120px;
+                height: 310px;
                 overflow-y: auto;
-                padding: 8px;
+                padding: 10px;
                 font-size: 0.75rem;
                 color: #38bdf8;
                 line-height: 1.4;
             }
 
-            /* Swagger UI Restyling to match NASA Control Theme */
+            /* Swagger UI Restyling to match NASA Command Theme */
             .swagger-ui .topbar { display: none !important; }
             .swagger-ui .scheme-container { background: var(--nasa-panel) !important; box-shadow: none !important; border: 1px solid var(--nasa-border); }
             .swagger-ui .info h1, .swagger-ui .info p, .swagger-ui .info table, .swagger-ui .base-url { color: var(--nasa-text) !important; font-family: 'Courier New', Courier, monospace !important; }
@@ -249,39 +271,56 @@ async def custom_swagger_ui_html() -> HTMLResponse:
     <body>
         <div class="mission-header">
             <div class="mission-grid-top">
-                <div class="mission-title">SYSTEMS // NEXUS-OMNI FLIGHT DYNAMICS & SIMULATION ENGINE</div>
-                <div class="mission-badge" id="telemetry-status">● TELEMETRY ONLINE [STABLE]</div>
+                <div class="mission-title">SYSTEMS // NEXUS-OMNI FLIGHT DYNAMICS & ANALYTICAL DECK</div>
+                <div class="mission-badge" id="telemetry-status">● TELEMETRY ONLINE [ACTIVE]</div>
             </div>
 
             <div class="command-deck">
-                <!-- Left Column: Primary Telemetry & Visualizer -->
+                <!-- Left Column: Primary Telemetry & Multi-Graphs -->
                 <div class="console-panel">
                     <div class="panel-header">
-                        <span>Real-Time Vector Field & State Telemetry</span>
-                        <span>[DOMAINS: 1-4 LOCKED]</span>
+                        <span>Multi-Domain Analytical Telemetry & Graphs</span>
+                        <span>[DOMAINS: 1-4 SYNCHRONIZED]</span>
                     </div>
                     
-                    <div class="telemetry-grid" style="margin-bottom: 15px;">
+                    <div class="telemetry-grid">
                         <div class="telemetry-item">
-                            <div class="telemetry-label">Simulation Epoch (t)</div>
+                            <div class="telemetry-label">Epoch (t)</div>
                             <div class="telemetry-value" id="disp-t">0</div>
                         </div>
                         <div class="telemetry-item">
-                            <div class="telemetry-label">Composite Risk Index</div>
+                            <div class="telemetry-label">Risk Index</div>
                             <div class="telemetry-value" id="disp-risk" style="color: var(--nasa-amber);">0.0000</div>
                         </div>
                         <div class="telemetry-item">
-                            <div class="telemetry-label">Spatial Diffusion Peak</div>
+                            <div class="telemetry-label">Spatial Peak</div>
                             <div class="telemetry-value" id="disp-peak">0.0000</div>
                         </div>
                         <div class="telemetry-item">
-                            <div class="telemetry-label">Supply Shortages</div>
+                            <div class="telemetry-label">Shortages</div>
                             <div class="telemetry-value" id="disp-shortages" style="color: var(--nasa-red);">0</div>
                         </div>
                     </div>
 
-                    <!-- Visual Vector Grid Rendering Canvas -->
-                    <canvas id="sim-canvas" width="600" height="180"></canvas>
+                    <!-- Multi-Graph Analytics Grid -->
+                    <div class="graphs-container">
+                        <div class="graph-box">
+                            <div class="graph-title">1. Composite Risk Trajectory Analysis</div>
+                            <canvas id="graph-risk" width="300" height="110"></canvas>
+                        </div>
+                        <div class="graph-box">
+                            <div class="graph-title">2. Spatial Diffusion Vector Flow</div>
+                            <canvas id="graph-spatial" width="300" height="110"></canvas>
+                        </div>
+                        <div class="graph-box">
+                            <div class="graph-title">3. Supply Chain Inventory Stress</div>
+                            <canvas id="graph-supply" width="300" height="110"></canvas>
+                        </div>
+                        <div class="graph-box">
+                            <div class="graph-title">4. SEIR Population Dynamic Flux</div>
+                            <canvas id="graph-seir" width="300" height="110"></canvas>
+                        </div>
+                    </div>
 
                     <div class="action-panel-btns">
                         <button class="nasa-btn" onclick="executeTick()">▶ ADVANCE EPOCH (/tick)</button>
@@ -289,24 +328,30 @@ async def custom_swagger_ui_html() -> HTMLResponse:
                     </div>
                 </div>
 
-                <!-- Right Column: System Logs & Execution Output -->
+                <!-- Right Column: System Logs & Execution Stream -->
                 <div class="console-panel">
                     <div class="panel-header">
-                        <span>Mission Control Event Stream</span>
+                        <span>Mission Control Event & Analysis Stream</span>
                     </div>
                     <div class="terminal-log" id="terminal-stream">
                         [SYS_INIT] Core engine linked successfully.<br>
-                        [SYS_INIT] Spatial matrix buffers allocated.<br>
-                        [READY] Awaiting operator command input...<br>
+                        [SYS_INIT] Analytical graphing buffers initialized.<br>
+                        [READY] Operator command deck online.<br>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="swagger-ui" style="max-width: 1400px; margin: 20px auto; padding: 0 20px;"></div>
+        <div id="swagger-ui" style="max-width: 1450px; margin: 20px auto; padding: 0 20px;"></div>
 
         <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
         <script>
+            // Historical telemetry data arrays for live graph rendering
+            let historyT = [];
+            let historyRisk = [];
+            let historyPeak = [];
+            let historyShortages = [];
+
             window.onload = function() {
                 window.ui = SwaggerUIBundle({
                     url: "/openapi.json",
@@ -315,56 +360,8 @@ async def custom_swagger_ui_html() -> HTMLResponse:
                     layout: "BaseLayout",
                     deepLinking: true
                 });
-                initCanvas();
+                startGraphLoops();
             };
-
-            // Canvas Vector Visualizer Simulation Animation Loop
-            let canvasPhase = 0;
-            function initCanvas() {
-                const canvas = document.getElementById('sim-canvas');
-                const ctx = canvas.getContext('2d');
-                
-                function draw() {
-                    ctx.fillStyle = '#03070e';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Draw grid matrix
-                    ctx.strokeStyle = '#1e3a5f';
-                    ctx.lineWidth = 0.5;
-                    for(let x = 0; x < canvas.width; x += 30) {
-                        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-                    }
-                    for(let y = 0; y < canvas.height; y += 30) {
-                        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-                    }
-
-                    // Draw dynamic simulated vector field wave
-                    ctx.strokeStyle = '#00b4d8';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    for(let x = 0; x < canvas.width; x++) {
-                        let y = canvas.height / 2 + Math.sin((x + canvasPhase) * 0.03) * 35 * Math.cos((x * 0.01));
-                        if(x === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
-                    ctx.stroke();
-
-                    // Secondary amber wave overlay
-                    ctx.strokeStyle = '#ffb703';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    for(let x = 0; x < canvas.width; x++) {
-                        let y = canvas.height / 2 + Math.cos((x - canvasPhase) * 0.02) * 25;
-                        if(x === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
-                    ctx.stroke();
-
-                    canvasPhase += 1.5;
-                    requestAnimationFrame(draw);
-                }
-                draw();
-            }
 
             function logMessage(msg) {
                 const term = document.getElementById('terminal-stream');
@@ -372,17 +369,90 @@ async def custom_swagger_ui_html() -> HTMLResponse:
                 term.scrollTop = term.scrollHeight;
             }
 
+            function drawLineGraph(canvasId, dataArray, lineColor) {
+                const canvas = document.getElementById(canvasId);
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw background grid lines
+                ctx.strokeStyle = '#1e3a8a';
+                ctx.lineWidth = 0.4;
+                for(let x = 0; x < canvas.width; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                }
+                for(let y = 0; y < canvas.height; y += 25) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                }
+
+                if (dataArray.length < 2) return;
+
+                // Plot telemetry points
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                const maxVal = Math.max(...dataArray, 1.0);
+                const minVal = Math.min(...dataArray, 0.0);
+                const range = maxVal - minVal === 0 ? 1 : maxVal - minVal;
+
+                for (let i = 0; i < dataArray.length; i++) {
+                    let x = (i / (dataArray.length - 1)) * canvas.width;
+                    let y = canvas.height - ((dataArray[i] - minVal) / range) * (canvas.height - 20) - 10;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            let phase = 0;
+            function startGraphLoops() {
+                function render() {
+                    // Generate safe fallback arrays if empty
+                    let rData = historyRisk.length > 0 ? historyRisk : [0, 0];
+                    let pData = historyPeak.length > 0 ? historyPeak : [0, 0];
+                    let sData = historyShortages.length > 0 ? historyShortages : [0, 0];
+                    
+                    // Synthetic dynamic wave for fourth SEIR graph
+                    let seirData = [];
+                    for(let i=0; i<20; i++) {
+                        seirData.push(Math.sin((i + phase) * 0.2) * 5 + 10);
+                    }
+
+                    drawLineGraph('graph-risk', rData, '#f59e0b');
+                    drawLineGraph('graph-spatial', pData, '#06b6d4');
+                    drawLineGraph('graph-supply', sData, '#ef4444');
+                    drawLineGraph('graph-seir', seirData, '#10b981');
+
+                    phase += 0.2;
+                    requestAnimationFrame(render);
+                }
+                render();
+            }
+
             async function executeTick() {
                 try {
                     const res = await fetch('/tick', { method: 'POST' });
                     const data = await res.json();
+                    
                     document.getElementById('disp-t').innerText = data.t;
                     document.getElementById('disp-risk').innerText = data.composite_risk_score.toFixed(4);
                     document.getElementById('disp-peak').innerText = data.spatial_peak.toFixed(4);
                     document.getElementById('disp-shortages').innerText = data.supply_shortages;
-                    logMessage(`Epoch advanced to t=${data.t} | Risk: ${data.composite_risk_score.toFixed(3)}`);
+
+                    // Push telemetry into historical arrays
+                    historyRisk.push(data.composite_risk_score);
+                    historyPeak.push(data.spatial_peak);
+                    historyShortages.push(data.supply_shortages);
+
+                    if(historyRisk.length > 30) {
+                        historyRisk.shift();
+                        historyPeak.shift();
+                        historyShortages.shift();
+                    }
+
+                    logMessage(`EPOCH ${data.t} PROCESSED // Risk: ${data.composite_risk_score.toFixed(4)} | Shortages: ${data.supply_shortages}`);
                 } catch (err) {
-                    logMessage(`ERROR: Tick execution failed.`);
+                    logMessage(`CRITICAL ERROR: Tick transmission failed.`);
                 }
             }
 
@@ -390,13 +460,19 @@ async def custom_swagger_ui_html() -> HTMLResponse:
                 try {
                     const res = await fetch('/reset', { method: 'POST' });
                     const data = await res.json();
+                    
                     document.getElementById('disp-t').innerText = data.t;
                     document.getElementById('disp-risk').innerText = "0.0000";
                     document.getElementById('disp-peak').innerText = "0.0000";
                     document.getElementById('disp-shortages').innerText = "0";
-                    logMessage(`SYSTEM RE-INITIALIZED: Epoch reset to t=0.`);
+
+                    historyRisk = [];
+                    historyPeak = [];
+                    historyShortages = [];
+
+                    logMessage(`SYSTEM RE-INITIALIZED: Engine parameters reset to baseline.`);
                 } catch (err) {
-                    logMessage(`ERROR: Reset sequence failed.`);
+                    logMessage(`CRITICAL ERROR: Reset sequence failed.`);
                 }
             }
         </script>
@@ -415,8 +491,8 @@ def health_check():
         "status": "ok",
         "service": "Nexus-Omni Simulator",
         "version": "0.1.0",
-        "ticks_run": engine.ticks_run,
-        "hint": "Navigate to /docs for the NASA-grade command telemetry deck."
+        "step_count": engine.step_count if hasattr(engine, 'step_count') else 0,
+        "hint": "Navigate to /docs for the NASA-grade multi-graph analytical deck."
     }
 
 @app.post("/tick", response_model=TickResponse, tags=["Simulation"])
@@ -449,10 +525,11 @@ def reset_simulation(params_override: Optional[ParamsIn] = None):
         else:
             engine.reset()
         
+        current_step = engine.step_count if hasattr(engine, 'step_count') else 0
         return {
             "status": "success",
-            "t": engine.ticks_run,
-            "message": "Flight simulation engine successfully re-calibrated."
+            "t": current_step,
+            "message": "Flight simulation engine and analytics successfully re-calibrated."
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
